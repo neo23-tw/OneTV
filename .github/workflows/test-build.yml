@@ -67,10 +67,10 @@ jobs:
             cp "$apk" "dist/$name.apk"
           done
           (cd dist && sha256sum *.apk > SHA256SUMS.txt)
-      - name: Upload to draft release
+      - name: Upload to prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           tag="test-$VERSION-${GITHUB_RUN_NUMBER}"
-          gh release create "$tag" --draft --title "OneTV $VERSION · Test ${GITHUB_RUN_NUMBER}" --notes "开发测试包（草稿，仅仓库维护者可见）。验证完成后删除此草稿；正式发布仍走 v 标签流程。" dist/*
+          gh release create "$tag" --prerelease --title "OneTV $VERSION · Test ${GITHUB_RUN_NUMBER}" --notes "开发测试包（私有仓预发布，仅自己可见）。验证完成后可删除；正式发布仍走 v 标签流程。" dist/*
