@@ -42,6 +42,7 @@ jobs:
           python3 scripts/verify-apks.py "$dir"/*release.apk
           version="$(sed -n "s/^ *versionName '\([^']*\)'$/\1/p" app/build.gradle)"
           code="$(sed -n 's/^ *versionCode \([0-9]*\)$/\1/p' app/build.gradle)"
+          echo "versionName=$version versionCode=$code"
           test -n "$version" && test -n "$code"
           echo "VERSION=$version" >> "$GITHUB_ENV"
           expected=2157f906b100ae2b111f582978bc31cd56df6c40154741900cd336d391bc84ab
@@ -52,9 +53,17 @@ jobs:
             if [[ "$abi" != universal ]]; then name="$name-$abi"; fi
             apk="$dir/app-$abi-release.apk"
             cert="$("$tools/apksigner" verify --print-certs "$apk")"
-            grep -Fx "Signer #1 certificate SHA-256 digest: $expected" <<< "$cert"
+            grep -F "certificate SHA-256 digest:" <<< "$cert" || true
+            if ! grep -Fx "Signer #1 certificate SHA-256 digest: $expected" <<< "$cert"; then
+              echo "SIGNER_MISMATCH actual digest printed above, expected $expected"
+              exit 1
+            fi
             badging="$("$tools/aapt" dump badging "$apk")"
-            grep -F "versionCode='$code' versionName='$version'" <<< "$badging"
+            grep -F "package:" <<< "$badging" | head -1 || true
+            if ! grep -F "versionCode='$code' versionName='$version'" <<< "$badging"; then
+              echo "VERSION_MISMATCH actual package line printed above, expected versionCode=$code versionName=$version"
+              exit 1
+            fi
             cp "$apk" "dist/$name.apk"
           done
           (cd dist && sha256sum *.apk > SHA256SUMS.txt)
