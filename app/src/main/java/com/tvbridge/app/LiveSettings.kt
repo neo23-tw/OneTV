@@ -51,7 +51,7 @@ class LiveSettings(private val activity:Activity){
         val entries=LauncherApps(activity).installed().filter{it.component.packageName !in setOf(activity.packageName,"com.tvbridge.engine")}
         val selected=LiveLaunch.component(activity)
         fun dp(n:Int)=(n*2*NativeUi.scale(activity)).toInt()
-        val labels=listOf("默认直播","自定义直播")+entries.map{it.label}
+        val labels=listOf("默认直播","添加直播源")+entries.map{it.label}
         val rows=LinearLayout(activity).apply{orientation=LinearLayout.VERTICAL}
         val scroll=ScrollView(activity).apply{isVerticalScrollBarEnabled=false;addView(rows)}
         val body=FrameLayout(activity).apply{addView(scroll,FrameLayout.LayoutParams(-1,dp(minOf(264,((labels.size+1)/2)*50))))}
@@ -64,7 +64,7 @@ class LiveSettings(private val activity:Activity){
                 val index=rowIndex*2+column
                 val component=entries.getOrNull(index-2)?.component
                 val button=Button(activity).apply{
-                    text=label;tag=component?:if(index==0)"one-live"else "one-player";isSelected=if(index<2)selected==null&&(index==0)==LiveLaunch.builtIn(activity)else component==selected
+                    text=label;tag=component?:if(index==0)"one-live"else "one-add";isSelected=if(index==0)selected==null&&LiveLaunch.builtIn(activity)else if(index==1)false else component==selected
                     contentDescription=label+if(isSelected)"，已选择"else ""
                     isAllCaps=false;minWidth=0;minimumWidth=0;minHeight=0;minimumHeight=0;maxLines=1
                     ellipsize=android.text.TextUtils.TruncateAt.END;gravity=Gravity.START or Gravity.CENTER_VERTICAL
@@ -75,7 +75,8 @@ class LiveSettings(private val activity:Activity){
                         setCompoundDrawablesRelative(null,null,mark,null);compoundDrawablePadding=dp(6);current=this
                     }
                     setOnClickListener{
-                        if(index<2)LiveLaunch.selectInternal(activity,if(index==0)"one"else "default",Hub.live)
+                        if(index==0)LiveLaunch.selectInternal(activity,"one",Hub.live)
+                        else if(index==1)promptAddSource()
                         else LiveLaunch.choose(activity,component)
                         dialog?.dismiss()
                     };NativeUi.touchClicks(this)
@@ -85,5 +86,21 @@ class LiveSettings(private val activity:Activity){
             if(items.size==1)row.addView(View(activity),LinearLayout.LayoutParams(0,dp(44),1f).apply{leftMargin=dp(8)})
         }
         dialog=NativeUi.show(AlertDialog.Builder(activity).setTitle("直播管理").setView(body).setNegativeButton("取消",null),initialFocus=current)
+    }
+
+    private fun promptAddSource(){
+        val input=EditText(activity).apply{hint="请输入直播源网址 (http:// 或 https://)";isSingleLine=true;setTextColor(GlassUi.ink(activity))}
+        NativeUi.show(AlertDialog.Builder(activity).setTitle("添加直播源").setView(input).setPositiveButton("订阅"){_,_->
+            val url=input.text.toString().trim()
+            if(url.isNotEmpty()){
+                Thread({
+                    val ok=Hub.live.subscribe(url)
+                    activity.runOnUiThread{
+                        NativeUi.notice(activity,if(ok)"订阅成功"else Hub.live.lastMessage.ifEmpty{"订阅失败，请检查网址"})
+                        (activity as? MainActivity)?.liveUpdated()
+                    }
+                },"live-subscribe-custom").start()
+            }
+        }.setNegativeButton("取消",null))
     }
 }

@@ -71,8 +71,6 @@ class LauncherApps(private val context:Context){
             if(intent!=null&&ChanghongSettings.open(context,intent))return true
         }
         fun direct()=try{context.startActivity(Intent(Intent.ACTION_MAIN).apply{if(entry.category.isNotEmpty())addCategory(entry.category)}.setComponent(entry.component).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED));true}catch(_:RuntimeException){false}
-        val opened=if(DesktopTakeover.isStockHome(context,entry.component))DesktopGuardService.openStock(context,entry.component,::direct)else direct()
-        if(!opened)DesktopGuardService.allowStockLauncher(false)
-        return opened
+        return direct()
     }
 }

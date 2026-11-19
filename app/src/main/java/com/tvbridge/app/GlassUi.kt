@@ -133,11 +133,10 @@ object GlassUi {
     }
 
     fun video(context: Context): Boolean {
-        if (activity(context)?.javaClass?.name == "com.tvbridge.app.BrowserActivity") return false
         if (context.packageName == "com.tvbridge.engine") return true
         fun contains(view: View): Boolean {
             if (!view.isShown) return false
-            if (view is android.view.SurfaceView || view is android.webkit.WebView) return true
+            if (view is android.view.SurfaceView) return true
             if (view is android.view.ViewGroup) {
                 for (i in 0 until view.childCount) {
                     if (contains(view.getChildAt(i))) return true

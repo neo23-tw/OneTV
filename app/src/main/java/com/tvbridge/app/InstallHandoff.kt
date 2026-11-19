@@ -6,7 +6,7 @@ internal object InstallHandoff {
     private const val KEY="installer_started"
     private const val LEFT="installer_left_home"
     private fun prefs(context:Context)=context.getSharedPreferences("startup",0)
-    fun begin(context:Context){DesktopTakeover.cancel(context);prefs(context).edit().putLong(KEY,System.currentTimeMillis()).remove(LEFT).commit()}
+    fun begin(context:Context){prefs(context).edit().putLong(KEY,System.currentTimeMillis()).remove(LEFT).commit()}
     fun opened(context:Context){if(active(context))prefs(context).edit().putBoolean(LEFT,true).commit()}
     fun returnedToStock(context:Context,stockInFront:Boolean):Boolean {
         if(!stockInFront||!active(context)||!prefs(context).getBoolean(LEFT,false))return false

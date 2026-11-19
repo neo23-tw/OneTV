@@ -429,7 +429,7 @@ class LivePanel(context:Context,private val repo:LiveRepository,private val exit
     }
     private fun sources(){
         groupPopup?.dismiss();val entries=repo.sourceList()
-        val labels=entries.map{"${it.name} · ${it.channels.size} 台"}+"更新订阅"+"删除当前源"
+        val labels=entries.map{"${it.name} · ${it.channels.size} 台"}+listOf("添加直播源","更新订阅","删除当前源")
         val popup=ListPopupWindow(context);groupPopup=popup;popup.anchorView=sourceButton.parent as View;popup.isModal=true;popup.width=if(drawer.width>0)drawer.width-dp(24) else dp(280)-dp(24);popup.height=dp((labels.size*38+16).coerceAtMost(250));popup.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
         popup.setAdapter(object:ArrayAdapter<String>(context,android.R.layout.simple_list_item_1,labels){override fun getView(position:Int,convert:View?,parent:ViewGroup)=TextView(context).apply{text=labels[position];NativeUi.textSize(this,28f);val selPos=(parent as? AbsListView)?.selectedItemPosition;val selected=if(selPos!=null&&selPos>=0)selPos==position else entries.getOrNull(position)?.url==repo.activeSource();setTextColor(if(selected)Color.WHITE else 0xffc8d0d8.toInt());setTypeface(null,if(selected)Typeface.BOLD else Typeface.NORMAL);background=android.graphics.drawable.ColorDrawable(Color.TRANSPARENT);gravity=Gravity.CENTER_VERTICAL;setPadding(dp(12),0,dp(12),0);minHeight=dp(38);maxLines=1;ellipsize=android.text.TextUtils.TruncateAt.END
             if(entries.getOrNull(position)?.url==repo.activeSource()){
@@ -439,9 +439,22 @@ class LivePanel(context:Context,private val repo:LiveRepository,private val exit
         }})
         popup.setOnItemClickListener{_,_,index,_->popup.dismiss();when{
             index<entries.size->{repo.selectSource(entries[index].url);favoritesOnly=false;refresh();all.firstOrNull()?.let{play(it,true)}}
-            index==entries.size->{val active=repo.activeSource();if(active!="local")Thread({repo.subscribe(active);ui.post{if(!released){refresh();NativeUi.notice(context,repo.lastMessage)}}},"live-update").start()}
+            index==entries.size->promptAddSource()
+            index==entries.size+1->{val active=repo.activeSource();if(active!="local")Thread({repo.subscribe(active);ui.post{if(!released){refresh();NativeUi.notice(context,repo.lastMessage)}}},"live-update").start()}
             else->showLiveDialog(AlertDialog.Builder(context).setMessage("删除当前直播源？").setPositiveButton("删除"){_,_->repo.removeSource(repo.activeSource());refresh();all.firstOrNull()?.let{play(it,true)}}.setNegativeButton("取消",null))
         }};popup.show();popup.listView?.let{it.background=GlassUi.surface(it,20f,video=true,dark=true,dense=true,alphaBoost=0x20);it.setPadding(dp(8),dp(8),dp(8),dp(8));it.divider=null;it.dividerHeight=0;setupList(it,false);it.selector=android.graphics.drawable.ColorDrawable(Color.TRANSPARENT);it.onItemSelectedListener=object:AdapterView.OnItemSelectedListener{override fun onNothingSelected(parent:AdapterView<*>?){} override fun onItemSelected(parent:AdapterView<*>?,child:View?,position:Int,id:Long){for(i in 0 until it.childCount){val row=it.getChildAt(i) as? TextView ?: continue;val selected=it.firstVisiblePosition+i==position;row.setTypeface(null,if(selected)Typeface.BOLD else Typeface.NORMAL);row.setTextColor(if(selected)Color.WHITE else 0xffc8d0d8.toInt())}}};it.post{it.requestFocusFromTouch();it.setSelection(entries.indexOfFirst{it.url==repo.activeSource()}.coerceAtLeast(0))}}
+    }
+    private fun promptAddSource(){
+        val input=EditText(context).apply{hint="请输入直播源网址 (http:// 或 https://)";isSingleLine=true;setTextColor(Color.WHITE);setPadding(dp(16),dp(12),dp(16),dp(12))}
+        showLiveDialog(AlertDialog.Builder(context).setTitle("添加直播源").setView(input).setPositiveButton("订阅"){_,_->
+            val url=input.text.toString().trim()
+            if(url.isNotEmpty()){
+                Thread({
+                    val ok=repo.subscribe(url)
+                    ui.post{if(!released){NativeUi.notice(context,if(ok)"订阅成功"else repo.lastMessage.ifEmpty{"订阅失败"});refresh();all.firstOrNull()?.let{play(it,true)}}}
+                },"live-subscribe-panel").start()
+            }
+        }.setNegativeButton("取消",null))
     }
     private fun closePanels(){drawer.visibility=View.GONE;hideControls()}
     private fun showControls(focus:Boolean=!touchDevice){fullTitle.visibility=View.VISIBLE;overlay.visibility=View.VISIBLE;ui.removeCallbacks(hide);if(focus){if(!controls.hasFocus())controls.getChildAt(0)?.requestFocus()}else ui.postDelayed(hide,5000)}

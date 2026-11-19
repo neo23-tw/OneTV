@@ -130,14 +130,9 @@ class ApkInstaller(private val activity:Activity){
             val uri=FileProvider.getUriForFile(activity,"${activity.packageName}.files",file)
             val intent=Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/vnd.android.package-archive")
                 .apply{clipData=ClipData.newRawUri("APK",uri)}.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-            val handler=activity.packageManager.resolveActivity(intent,android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
-            if(android.os.Build.VERSION.SDK_INT>=21&&handler?.activityInfo?.name?.endsWith(".DBInstallStart")==true&&Hub.adb.enabled()){
-                confirmCompatibleInstall(file)
-            }else {
-                pendingInstallName=file.name;pendingInstallAt=android.os.SystemClock.uptimeMillis()
-                openingInstaller=true;installerLeftHome=false;installerSeen=false;InstallHandoff.begin(activity);activity.startActivity(intent)
-                checkConfirmationOpened()
-            }
+            pendingInstallName=file.name;pendingInstallAt=android.os.SystemClock.uptimeMillis()
+            openingInstaller=true;installerLeftHome=false;installerSeen=false;InstallHandoff.begin(activity);activity.startActivity(intent)
+            checkConfirmationOpened()
         }catch(_:RuntimeException){InstallHandoff.finish(activity);message("无法打开系统安装器")}
     }
     private fun checkConfirmationOpened(){
@@ -238,16 +233,6 @@ class ApkInstaller(private val activity:Activity){
         if(installed){message("安装完成");Hub.live.refreshPlugin()}
     }
     fun destroy(){main.removeCallbacksAndMessages(null);installReceiver?.let{try{activity.unregisterReceiver(it)}catch(_:Exception){}};installReceiver=null}
-    private fun confirmCompatibleInstall(file:File){
-        if(!Hub.adb.enabled()){message("此电视安装器异常，请先在遥控设置中连接系统遥控，再重试安装");return}
-        NativeUi.show(AlertDialog.Builder(activity).setTitle("兼容安装").setMessage("通过已授权的系统调试安装 ${file.name}？")
-            .setPositiveButton("安装"){_,_->
-                message("正在安装")
-                Thread({
-                    val result=(Hub.adb.ready||Hub.adb.connect(Hub.adb.port()))&&Hub.adb.installApk(file)
-                    activity.runOnUiThread{message(if(result)"安装完成"else "安装失败，请检查 APK 签名、版本和系统遥控连接")}
-                },"apk-compatible-install").start()
-            }.setNegativeButton("取消",null))
-    }
+
     private fun message(text:String){NativeUi.notice(activity,text)}
 }

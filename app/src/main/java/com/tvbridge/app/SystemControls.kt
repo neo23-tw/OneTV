@@ -59,13 +59,9 @@ object SystemControls {
                     android.widget.TextView(activity).apply{text=getItem(position);gravity=android.view.Gravity.CENTER_VERTICAL;NativeUi.textSize(this,30f);setTextColor(GlassUi.ink(activity));setPadding(dp(12),0,dp(12),0);minHeight=dp(38)}
             }
             list.setOnItemClickListener{_,_,index,_->
-                DesktopGuardService.sourceSwitchStarted()
                 dialog.dismiss()
                 val intent=inputs[index].intent
-                val jmgoHome=intent.component==ComponentName("com.jmgo.tv","com.jmgo.tv.MainActivity")&&intent.hasExtra("inputSrc")
-                if(jmgoHome)DesktopGuardService.allowStockLauncher()
                 if(!open(activity,listOf(intent),false)){
-                    if(jmgoHome)DesktopGuardService.allowStockLauncher(false)
                     inputPanel(activity)
                 }
             }

@@ -73,7 +73,6 @@ object NativeUi {
     private var hiddenQrBox:WeakReference<android.view.View>?=null
     private fun hideQrBox(qrBox:android.view.View){qrBox.visibility=android.view.View.GONE;hiddenQrBox=WeakReference(qrBox)}
     private fun restoreQrBox(){hiddenQrBox?.get()?.let{it.visibility=android.view.View.VISIBLE};hiddenQrBox=null}
-    fun inputDialogText(text:String):Boolean?=dialog.get()?.takeIf{it.isShowing}?.let{RemoteText.insert(it.currentFocus,text)}
     fun show(builder:AlertDialog.Builder,tallList:Boolean=false,compact:Boolean=false,widthDp:Int?=null,anchor:View?=null,maxListHeightDp:Int?=null,initialFocus:View?=null):AlertDialog {
         val video=GlassUi.video(builder.context)
         val frost=if(video)null else GlassUi.snapshot(builder.context)
