@@ -4,7 +4,7 @@ import android.app.*
 import android.media.AudioManager
 import android.os.*
 import android.content.*
-import android.graphics.Color
+import android.graphics.*
 import android.graphics.drawable.*
 import android.provider.Settings
 import android.view.*
