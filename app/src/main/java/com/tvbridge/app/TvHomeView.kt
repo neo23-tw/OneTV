@@ -20,7 +20,7 @@ class TvHomeView(
     private val bold = Typeface.create("sans-serif", Typeface.BOLD)
     private val clockFont = Typeface.create("sans-serif", Typeface.BOLD)
     private val timeFormat = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
-    private val dateFormat = java.text.SimpleDateFormat("yyyy年M月d日  EEEE", java.util.Locale.SIMPLIFIED_CHINESE)
+    private val dateFormat = java.text.SimpleDateFormat("yyyy年M月d日  EEEE", java.util.Locale.TAIWAN)
     private val decelerator = DecelerateInterpolator(1.5f)
 
     // 4 Main Tabs
@@ -489,7 +489,7 @@ class TvHomeView(
         }
 
         val ax = (ox + 96 * scale).toInt()
-        val gridTop = (if (twoRows) 530 else 610) * scale
+        val gridTop = (if (twoRows) 560 else 640) * scale
         val ay = (oy + gridTop).toInt()
         appRail.layout(ax, ay, ax + appRail.measuredWidth, ay + appRail.measuredHeight)
 
