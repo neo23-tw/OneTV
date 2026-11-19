@@ -4,13 +4,14 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.os.Build
 
 object ExternalAppRoutes {
     private const val PREFS_NAME = "external_routes"
     private const val KEY_MOVIE_PACKAGE = "movie_package"
     private const val KEY_MOVIE_LABEL = "movie_label"
 
-    // Default package candidates for OK影視 or other common TV cinema apps
+    // Default package candidates for OK影視 or common TV streaming apps
     val DEFAULT_CANDIDATES = listOf(
         "com.ok.video",
         "com.ok.tv",
@@ -49,14 +50,29 @@ object ExternalAppRoutes {
     }
 
     /**
+     * Resolves the launch intent for an app on Android TV.
+     * First checks standard launch intent; if null, falls back to Leanback launch intent (Android 5.0+).
+     */
+    fun getLaunchIntent(context: Context, packageName: String): Intent? {
+        val pm = context.packageManager
+        val standardIntent = try { pm.getLaunchIntentForPackage(packageName) } catch (_: Exception) { null }
+        if (standardIntent != null) return standardIntent
+
+        if (Build.VERSION.SDK_INT >= 21) {
+            val leanbackIntent = try { pm.getLeanbackLaunchIntentForPackage(packageName) } catch (_: Exception) { null }
+            if (leanbackIntent != null) return leanbackIntent
+        }
+        return null
+    }
+
+    /**
      * Safely launch the external movie app.
-     * Guaranteed to prevent crashes if the app is missing, corrupted, or cannot be resolved.
+     * Guaranteed not to crash on Leanback-only apps, missing apps, or permission blocks.
      */
     fun launchMovieApp(context: Context): Boolean {
         val targetPkg = getMoviePackage(context)
-        val pm = context.packageManager
+        val launchIntent = getLaunchIntent(context, targetPkg)
 
-        val launchIntent = pm.getLaunchIntentForPackage(targetPkg)
         if (launchIntent != null) {
             try {
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
@@ -68,31 +84,30 @@ object ExternalAppRoutes {
             }
         }
 
-        // Defensive check: Target package not installed or has no launchable Activity
+        // Target package not installed or not resolvable
         val label = getMovieLabel(context)
         NativeUi.notice(context, "未安裝 $label（目標包名：$targetPkg），請先安裝或於設定中選擇應用")
         return false
     }
 
     fun isPackageInstalled(context: Context, packageName: String): Boolean {
-        return try {
-            context.packageManager.getPackageInfo(packageName, 0)
-            true
-        } catch (_: Exception) {
-            false
+        val pm = context.packageManager
+        if (try { pm.getPackageInfo(packageName, 0); true } catch (_: Exception) { false }) {
+            return true
         }
+        return getLaunchIntent(context, packageName) != null
     }
 
     /**
-     * Show a dialog to let user choose which installed app is linked to the "電影" tab.
+     * Show a dialog to let user choose which installed TV app is linked to the "電影" tab.
+     * Comprehensive: lists all apps having LEANBACK_LAUNCHER or LAUNCHER intents.
      */
     fun showSelectMovieAppDialog(activity: android.app.Activity, onSelected: () -> Unit = {}) {
         val launcherApps = LauncherApps(activity)
         val installed = launcherApps.installed().filter { it.component.packageName != activity.packageName }
-        val currentPkg = getMoviePackage(activity)
+        val currentLabel = getMovieLabel(activity)
 
         val options = mutableListOf("恢復預設（OK影視）") + installed.map { it.label }
-        val currentLabel = getMovieLabel(activity)
 
         NativeUi.show(
             AlertDialog.Builder(activity)

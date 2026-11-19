@@ -28,18 +28,15 @@ class LauncherApps(private val context:Context){
         try{
             for(app in pm.getInstalledApplications(0)){
                 if(app.packageName==context.packageName||found.containsKey(app.packageName))continue
-                val intent=try{pm.getLaunchIntentForPackage(app.packageName)}catch(_:Exception){null}?:continue
-                val component=intent.component?:continue
+                var intent=try{pm.getLaunchIntentForPackage(app.packageName)}catch(_:Exception){null}
+                if(intent==null&&android.os.Build.VERSION.SDK_INT>=21){
+                    intent=try{pm.getLeanbackLaunchIntentForPackage(app.packageName)}catch(_:Exception){null}
+                }
+                val component=intent?.component?:continue
                 val stamp=try{pm.getPackageInfo(app.packageName,0).lastUpdateTime}catch(_:PackageManager.NameNotFoundException){0L}
-                found[app.packageName]=Entry(component,try{pm.getApplicationLabel(app).toString()}catch(_:Exception){app.packageName},Intent.CATEGORY_LAUNCHER,stamp)
+                found[app.packageName]=Entry(component,try{pm.getApplicationLabel(app).toString()}catch(_:Exception){app.packageName},Intent.CATEGORY_LEANBACK_LAUNCHER,stamp)
             }
         }catch(_:Exception){}
-        val gitv=ComponentName("com.gitv.dvb.live","com.gitv.dvb.live.activity.PlayActivity")
-        if(gitv.packageName !in found){
-            runCatching{pm.getActivityInfo(gitv,0)}.getOrNull()?.takeIf{it.exported&&it.enabled&&it.applicationInfo.enabled}?.let{info->
-                found[gitv.packageName]=Entry(gitv,info.loadLabel(pm).toString(),category="")
-            }
-        }
         found.values.sortedBy{it.label.lowercase()}.also{catalogs[pm]=it}
     }
     fun icon(entry:Entry):android.graphics.drawable.Drawable {

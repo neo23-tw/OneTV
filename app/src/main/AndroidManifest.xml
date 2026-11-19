@@ -16,29 +16,17 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
 
     <queries>
-        <package android:name="cn.formovie.fengos.settings" />
-        <package android:name="com.jmgo.tv" />
-        <intent><action android:name="com.android.sky.SendHotKey" /></intent>
-        <package android:name="com.gitv.dvb.live" />
-        <package android:name="com.android.newsettings" /><package android:name="com.xgimi.xhplayer" /><package android:name="com.konka.tvsettings" />
-        <package android:name="com.jamdeo.tv.service" /><package android:name="com.hisense.tv.tiletransition" /><package android:name="com.droidlogic.tvsource" />
-        <package android:name="com.skyworth.tv" /><package android:name="com.skyworth.setting" /><package android:name="com.tcl.tv" /><package android:name="com.xiaomi.mitv.tvplayer" />
-        <package android:name="com.mylejia.launcher" /><package android:name="com.coocaa.aigc.home" /><package android:name="com.jamdeo.tv.vod" />
-        <package android:name="com.hisense.vidaaassistant" /><package android:name="com.keylab.speech.view.vidaa" /><package android:name="com.tianci.tv" />
-        <package android:name="com.ktcp.launcher" /><package android:name="com.skyworth.panasonichome" /><package android:name="com.tianci.movieplatform" />
-        <package android:name="com.stv.deskplatform" /><package android:name="com.mitv.tvhome" /><package android:name="com.tvfengmi.launcher" />
-        <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="content" /></intent>
-        <intent><action android:name="android.settings.TV_INPUT_SETTINGS" /></intent>
-        <package android:name="com.tcl.settings" /><package android:name="com.hisense.tv.inputs" /><package android:name="com.xiaomi.mitv.settings" />
-        <intent><action android:name="android.intent.action.MAIN" /></intent>
-        <intent><action android:name="android.settings.SETTINGS" /></intent>
-        <intent><action android:name="android.settings.WIFI_SETTINGS" /></intent>
-        <intent><action android:name="android.settings.DISPLAY_SETTINGS" /></intent>
-        <intent><action android:name="android.intent.action.VIEW"/><data android:mimeType="application/vnd.android.package-archive"/></intent>
         <intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.HOME"/></intent>
         <intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent>
         <intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LEANBACK_LAUNCHER"/></intent>
         <intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.APPSTORE_LAUNCHER"/></intent>
+        <intent><action android:name="android.intent.action.MAIN" /></intent>
+        <intent><action android:name="android.settings.SETTINGS" /></intent>
+        <intent><action android:name="android.settings.TV_INPUT_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.WIFI_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.DISPLAY_SETTINGS" /></intent>
+        <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="content" /></intent>
+        <intent><action android:name="android.intent.action.VIEW"/><data android:mimeType="application/vnd.android.package-archive"/></intent>
     </queries>
 
     <application
