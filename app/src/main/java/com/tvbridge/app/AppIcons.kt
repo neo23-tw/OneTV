@@ -6,7 +6,10 @@ import android.widget.TextView
 
 object AppIcons {
     fun forLabel(label:String):String?=when{
-        label=="设置"->"settings";label.contains("直播源")->"layers";label.contains("直播")->"tv";label.contains("文件")->"folder";label.contains("遥控")->"remote"
+        label in listOf("首页","首頁") -> "home"
+        label in listOf("电影","電影") -> "play"
+        label in listOf("设置","設定") -> "settings"
+        label.contains("直播源")->"layers";label.contains("直播")->"tv";label.contains("文件")->"folder";label.contains("遥控")->"remote"
         label.contains("收藏")->"star";label.contains("频道列表")->"list";label.contains("返回")||label.contains("退出全屏")->"back"
         label.contains("重新加载")||label.contains("刷新")||label.contains("线路")->"refresh";label.contains("全屏")->"expand"
         label.contains("添加")->"plus";label.contains("桌面")->"home";label=="应用"->"grid";else->null

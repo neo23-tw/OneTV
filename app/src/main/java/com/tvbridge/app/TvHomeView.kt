@@ -8,10 +8,10 @@ import android.widget.Button
 
 class TvHomeView(
     context: Context,
-    private val live: Runnable,
-    private val settings: Runnable,
-    private val apps: Runnable,
-    private val addApps: Runnable
+    private val onLive: Runnable,
+    private val onMovie: Runnable,
+    private val onSettings: Runnable,
+    private val onAllApps: Runnable
 ) : ViewGroup(context) {
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -21,18 +21,12 @@ class TvHomeView(
     private val timeFormat = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
     private val dateFormat = java.text.SimpleDateFormat("yyyy年M月d日  EEEE", java.util.Locale.SIMPLIFIED_CHINESE)
 
-    private val liveButton = Button(context)
-    private val allApps = Button(context)
-    private val controlButton = object : Button(context) {
-        private val icon = AppIcons.Vector("settings") { currentTextColor }
-        override fun onDraw(canvas: Canvas) {
-            val size = (40 * NativeUi.scale(context)).toInt()
-            val left = (width - size) / 2
-            val top = (height - size) / 2
-            icon.setBounds(left, top, left + size, top + size)
-            icon.draw(canvas)
-        }
-    }
+    // 4 Main Tabs
+    val homeTab = Button(context)
+    val liveTab = Button(context)
+    val movieTab = Button(context)
+    val settingsTab = Button(context)
+    val tabs = listOf(homeTab, liveTab, movieTab, settingsTab)
 
     private val appButtons = mutableListOf<ShortcutButton>()
     private var appMenu: android.widget.ListPopupWindow? = null
@@ -53,7 +47,7 @@ class TvHomeView(
     private var appearanceKey = HomeAppearance.key(context)
     private val ink get() = GlassUi.ink(context, darkHome)
     private var appSignature: String? = null
-    private var rememberedFocus = ""
+    private var rememberedFocus = "首頁"
     private var activatedFocus = ""
     private var labelInk: Rect? = null
 
@@ -64,7 +58,7 @@ class TvHomeView(
         paint.textSize = 32f
         paint.typeface = bold
         val bounds = Rect()
-        paint.getTextBounds("常用应用", 0, 4, bounds)
+        paint.getTextBounds("常用應用", 0, 4, bounds)
         paint.textSize = previousSize
         paint.typeface = previousTypeface
         labelInk = bounds
@@ -90,104 +84,69 @@ class TvHomeView(
         setWillNotDraw(false)
         isFocusable = false
 
-        liveButton.apply {
-            if (android.os.Build.VERSION.SDK_INT >= 21) backgroundTintList = null
-            if (android.os.Build.VERSION.SDK_INT >= 21) stateListAnimator = null
-            if (android.os.Build.VERSION.SDK_INT >= 26) defaultFocusHighlightEnabled = false
-            text = "电视直播"
-            contentDescription = "电视直播"
-            id = generateViewId()
-            isAllCaps = false
-            isFocusableInTouchMode = true
-            setTextColor(homeTextColors())
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 0)
-            minWidth = 0; minimumWidth = 0; minHeight = 0; minimumHeight = 0
-            setOnClickListener {
-                activatedFocus = "电视直播"
-                rememberedFocus = "电视直播"
-                live.run()
-            }
-            setOnFocusChangeListener { v, focus ->
-                if (focus) {
-                    rememberedFocus = "电视直播"
-                    controlButton.nextFocusDownId = v.id
-                }
-                (v as Button).setTextColor(homeTextColors())
-                v.animate().scaleX(if (focus) 1.035f else 1f).scaleY(if (focus) 1.035f else 1f).setDuration(120).start()
-            }
-        }
-        NativeUi.touchClicks(liveButton)
-        addView(liveButton)
+        val tabConfigs = listOf(
+            Triple(homeTab, "首頁", Runnable { focusFirstApp() }),
+            Triple(liveTab, "直播", onLive),
+            Triple(movieTab, "電影", onMovie),
+            Triple(settingsTab, "設定", onSettings)
+        )
 
-        allApps.apply {
-            text = "全部应用"
-            contentDescription = "全部应用"
-            id = generateViewId()
-            isAllCaps = false
-            isFocusableInTouchMode = true
-            if (android.os.Build.VERSION.SDK_INT >= 21) backgroundTintList = null
-            if (android.os.Build.VERSION.SDK_INT >= 21) stateListAnimator = null
-            if (android.os.Build.VERSION.SDK_INT >= 26) defaultFocusHighlightEnabled = false
-            setTextColor(homeTextColors())
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 0)
-            minWidth = 0; minimumWidth = 0; minHeight = 0; minimumHeight = 0
-            setOnClickListener {
-                activatedFocus = "全部应用"
-                rememberedFocus = "全部应用"
-                apps.run()
-            }
-            setOnFocusChangeListener { v, focus ->
-                if (focus) {
-                    rememberedFocus = "全部应用"
-                    controlButton.nextFocusDownId = v.id
+        tabConfigs.forEach { (btn, label, action) ->
+            btn.apply {
+                if (android.os.Build.VERSION.SDK_INT >= 21) backgroundTintList = null
+                if (android.os.Build.VERSION.SDK_INT >= 21) stateListAnimator = null
+                if (android.os.Build.VERSION.SDK_INT >= 26) defaultFocusHighlightEnabled = false
+                text = label
+                contentDescription = label
+                id = generateViewId()
+                isAllCaps = false
+                isFocusableInTouchMode = true
+                setTextColor(homeTextColors())
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, 0)
+                minWidth = 0; minimumWidth = 0; minHeight = 0; minimumHeight = 0
+                setOnClickListener {
+                    activatedFocus = label
+                    rememberedFocus = label
+                    action.run()
                 }
-                (v as Button).setTextColor(homeTextColors())
-                v.animate().scaleX(if (focus) 1.035f else 1f).scaleY(if (focus) 1.035f else 1f).setDuration(120).start()
+                setOnFocusChangeListener { v, focus ->
+                    if (focus) {
+                        rememberedFocus = label
+                    }
+                    (v as Button).setTextColor(homeTextColors())
+                    v.animate().scaleX(if (focus) 1.06f else 1f).scaleY(if (focus) 1.06f else 1f).setDuration(120).start()
+                }
             }
+            NativeUi.touchClicks(btn)
+            addView(btn)
         }
-        AppIcons.bind(allApps, "grid", 34f)
-        NativeUi.touchClicks(allApps)
-        addView(allApps)
 
-        controlButton.apply {
-            text = ""
-            contentDescription = "设置"
-            id = generateViewId()
-            isAllCaps = false
-            isFocusableInTouchMode = true
-            if (android.os.Build.VERSION.SDK_INT >= 21) backgroundTintList = null
-            if (android.os.Build.VERSION.SDK_INT >= 21) stateListAnimator = null
-            if (android.os.Build.VERSION.SDK_INT >= 26) defaultFocusHighlightEnabled = false
-            setTextColor(homeTextColors())
-            setPadding(0, 0, 0, 0)
-            minWidth = 0; minimumWidth = 0; minHeight = 0; minimumHeight = 0
-            setOnClickListener {
-                activatedFocus = "设置"
-                rememberedFocus = "设置"
-                settings.run()
-            }
-            setOnFocusChangeListener { _, focus ->
-                if (focus) rememberedFocus = "设置"
-                controlButton.animate().scaleX(if (focus) 1.08f else 1f).scaleY(if (focus) 1.08f else 1f).setDuration(120).start()
-            }
-        }
-        NativeUi.touchClicks(controlButton)
-        addView(controlButton)
+        // Setup horizontal D-Pad chain between tabs
+        homeTab.nextFocusLeftId = homeTab.id
+        homeTab.nextFocusRightId = liveTab.id
+
+        liveTab.nextFocusLeftId = homeTab.id
+        liveTab.nextFocusRightId = movieTab.id
+
+        movieTab.nextFocusLeftId = liveTab.id
+        movieTab.nextFocusRightId = settingsTab.id
+
+        settingsTab.nextFocusLeftId = movieTab.id
+        settingsTab.nextFocusRightId = settingsTab.id
+
+        tabs.forEach { it.nextFocusUpId = it.id }
+
+        homeTab.isSelected = true
 
         addView(appRail)
         refreshApps()
+    }
 
-        liveButton.nextFocusLeftId = liveButton.id
-        liveButton.nextFocusRightId = allApps.id
-        allApps.nextFocusLeftId = liveButton.id
-        allApps.nextFocusRightId = allApps.id
-
-        controlButton.nextFocusDownId = allApps.id
-        controlButton.nextFocusLeftId = controlButton.id
-        controlButton.nextFocusRightId = controlButton.id
-        controlButton.nextFocusUpId = controlButton.id
+    private fun focusFirstApp() {
+        if (appButtons.isNotEmpty()) {
+            appButtons.first().requestFocus()
+        }
     }
 
     fun refreshApps() {
@@ -223,8 +182,8 @@ class TvHomeView(
                     activatedFocus = label
                     rememberedFocus = label
                     if (moving != null) finishMove()
-                    else if (entry == null) addApps.run()
-                    else if (!launcherApps.launch(entry)) NativeUi.notice(context, "应用已移除或无法打开")
+                    else if (entry == null) onAllApps.run()
+                    else if (!launcherApps.launch(entry)) NativeUi.notice(context, "應用已移除或無法打開")
                 }
                 setOnFocusChangeListener { _, focus ->
                     if (focus) rememberedFocus = label
@@ -241,10 +200,16 @@ class TvHomeView(
         }
 
         entries.forEach { add(it.label, it) }
-        if (entries.size < LauncherApps.MAX_FAVORITES) add("添加应用", null)
+        add("全部應用", null)
 
-        val tools = listOf(liveButton, allApps)
-        val toolForColumn = { col: Int -> if (col < 2) liveButton else allApps }
+        val toolForColumn = { col: Int ->
+            when (col) {
+                0 -> homeTab
+                1 -> liveTab
+                2 -> movieTab
+                else -> settingsTab
+            }
+        }
 
         appButtons.forEachIndexed { i, b ->
             b.nextFocusLeftId = appButtons[if (i % 5 == 0) i else i - 1].id
@@ -253,11 +218,9 @@ class TvHomeView(
             b.nextFocusDownId = appButtons.getOrNull(i + 5)?.id ?: b.id
         }
 
-        tools.forEachIndexed { i, b ->
-            b.nextFocusLeftId = tools[(i - 1).coerceAtLeast(0)].id
-            b.nextFocusRightId = tools[(i + 1).coerceAtMost(1)].id
-            b.nextFocusUpId = controlButton.id
-            b.nextFocusDownId = appButtons.getOrNull(i)?.id ?: appButtons.lastOrNull()?.id ?: b.id
+        // Link tab down navigation to corresponding app button column
+        tabs.forEachIndexed { i, tab ->
+            tab.nextFocusDownId = appButtons.getOrNull(i)?.id ?: appButtons.firstOrNull()?.id ?: tab.id
         }
 
         styledScale = -1f
@@ -311,7 +274,7 @@ class TvHomeView(
         popup.horizontalOffset = 0
         popup.verticalOffset = -anchor.height - (112 * scale).toInt()
         popup.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        popup.setAdapter(object : android.widget.ArrayAdapter<String>(context, android.R.layout.simple_list_item_1, listOf("移动", "删除")) {
+        popup.setAdapter(object : android.widget.ArrayAdapter<String>(context, android.R.layout.simple_list_item_1, listOf("移動", "移除常用")) {
             override fun getView(position: Int, convert: View?, parent: ViewGroup): View =
                 android.widget.TextView(context).apply {
                     text = getItem(position)
@@ -435,8 +398,8 @@ class TvHomeView(
     }
 
     private val twoRows get() = appButtons.size > 5
-    private fun homeButtonBackground(view: View) = GlassUi.surface(view, faint = true)
-    private fun appTileBackground(view: View) = homeButtonBackground(view)
+    private fun tabBackground(view: View) = GlassUi.surface(view, 24f, faint = true)
+    private fun appTileBackground(view: View) = GlassUi.surface(view, faint = true)
 
     override fun onMeasure(width: Int, height: Int) {
         val w = MeasureSpec.getSize(width)
@@ -467,26 +430,30 @@ class TvHomeView(
             MeasureSpec.makeMeasureSpec(((if (twoRows) 360 else 200) * scale).toInt(), MeasureSpec.EXACTLY)
         )
 
-        listOf(liveButton, allApps).forEach { b ->
+        val tabWidth = (240 * scale).toInt()
+        val tabHeight = (72 * scale).toInt()
+        tabs.forEach { b ->
             b.measure(
-                MeasureSpec.makeMeasureSpec((320 * scale).toInt(), MeasureSpec.EXACTLY),
-                MeasureSpec.makeMeasureSpec((100 * scale).toInt(), MeasureSpec.EXACTLY)
+                MeasureSpec.makeMeasureSpec(tabWidth, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(tabHeight, MeasureSpec.EXACTLY)
             )
         }
-        controlButton.measure(
-            MeasureSpec.makeMeasureSpec((76 * scale).toInt(), MeasureSpec.EXACTLY),
-            MeasureSpec.makeMeasureSpec((76 * scale).toInt(), MeasureSpec.EXACTLY)
-        )
     }
 
     private fun updateButtonStyles() {
-        listOf(liveButton, allApps).forEach { b ->
+        tabs.forEach { b ->
             b.setTextColor(homeTextColors())
-            b.background = homeButtonBackground(b)
+            b.background = tabBackground(b)
             NativeUi.textSize(b, 30f)
             b.gravity = Gravity.CENTER
-            AppIcons.bind(b, if (b === liveButton) "tv" else "grid", 34f)
-            val inset = ((320 * scale - 34 * scale - 12 * scale - b.paint.measureText(b.text.toString())) / 2).toInt().coerceAtLeast((16 * scale).toInt())
+            val iconKey = when (b) {
+                homeTab -> "home"
+                liveTab -> "tv"
+                movieTab -> "play"
+                else -> "settings"
+            }
+            AppIcons.bind(b, iconKey, 32f)
+            val inset = ((b.measuredWidth - 32 * scale - 12 * scale - b.paint.measureText(b.text.toString())) / 2).toInt().coerceAtLeast((16 * scale).toInt())
             b.setPadding(inset, 0, inset, 0)
         }
         appButtons.forEach { button ->
@@ -494,28 +461,23 @@ class TvHomeView(
             NativeUi.textSize(button, 28f)
             button.background = appTileBackground(button)
         }
-        controlButton.setTextColor(Color.WHITE)
-        controlButton.background = GlassUi.surface(controlButton, GlassUi.CIRCLE_RADIUS, video = true, dark = true, faint = true)
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-        val y = (oy + (if (twoRows) 452 else 570) * scale).toInt()
-        listOf(liveButton, allApps).forEachIndexed { i, button ->
-            val x = (ox + (96 + i * 352) * scale).toInt()
+        val y = (oy + 64 * scale).toInt()
+        val tabSpacing = (24 * scale).toInt()
+        tabs.forEachIndexed { i, button ->
+            val x = (ox + (96 * scale) + i * (button.measuredWidth + tabSpacing)).toInt()
             button.layout(x, y, x + button.measuredWidth, y + button.measuredHeight)
         }
-        val connection = controlButton
-        val right = (ox + 1824 * scale).toInt()
-        val cy = (oy + 58 * scale).toInt()
-        connection.layout(right - connection.measuredWidth, cy, right, cy + connection.measuredHeight)
 
         val ax = (ox + 96 * scale).toInt()
-        val buttonsBottom = (if (twoRows) 452 else 570) + 100
-        val ay = (oy + (buttonsBottom + 60 + labelInkBounds().height()) * scale).toInt()
+        val gridTop = (if (twoRows) 530 else 610) * scale
+        val ay = (oy + gridTop).toInt()
         appRail.layout(ax, ay, ax + appRail.measuredWidth, ay + appRail.measuredHeight)
 
         appButtons.forEach { button ->
-            button.contentDescription = button.text.toString() + (if (moving?.component == (button.tag as? LauncherApps.Entry)?.component && moving != null) "，移动中" else "")
+            button.contentDescription = button.text.toString() + (if (moving?.component == (button.tag as? LauncherApps.Entry)?.component && moving != null) "，移動中" else "")
             button.isSelected = moving?.component == (button.tag as? LauncherApps.Entry)?.component && moving != null
         }
     }
@@ -550,10 +512,10 @@ class TvHomeView(
 
     fun focusFirst() {
         val entry = activatedFocus.ifEmpty { rememberedFocus }
-        val target = if (entry.isEmpty()) null else (appButtons + listOf(liveButton, allApps, controlButton)).firstOrNull {
+        val target = if (entry.isEmpty()) null else (appButtons + tabs).firstOrNull {
             it.visibility == View.VISIBLE && it.isFocusable && (it.text?.toString() == entry || it.contentDescription?.toString() == entry)
         }
-        (target ?: liveButton).requestFocus()
+        (target ?: homeTab).requestFocus()
     }
 
     private fun text(c: Canvas, value: String, x: Float, y: Float, size: Float, color: Int = ink, strong: Boolean = false) {
@@ -578,9 +540,9 @@ class TvHomeView(
         timeFormat.timeZone = zone
         dateFormat.timeZone = zone
         val time = timeFormat.format(now)
-        paint.textSize = if (twoRows) 148f else 168f
+        paint.textSize = if (twoRows) 130f else 150f
         paint.typeface = clockFont
-        val timeY = if (twoRows) 276f else 326f
+        val timeY = if (twoRows) 290f else 350f
 
         paint.shader = null
         paint.style = Paint.Style.FILL
@@ -597,9 +559,9 @@ class TvHomeView(
 
         paint.style = Paint.Style.FILL
         paint.strokeWidth = 0f
-        text(c, dateFormat.format(now), 100f, if (twoRows) 340f else 390f, 36f)
+        text(c, dateFormat.format(now), 100f, if (twoRows) 345f else 405f, 34f)
         val ink = labelInkBounds()
-        text(c, "常用应用", 96f, (if (twoRows) 552f else 670f) + 30f - ink.top, 32f, strong = true)
+        text(c, "常用應用", 96f, (if (twoRows) 530f else 610f) - 24f, 32f, strong = true)
         c.restore()
     }
 }

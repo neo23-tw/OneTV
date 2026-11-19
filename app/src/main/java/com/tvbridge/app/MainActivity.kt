@@ -66,10 +66,10 @@ class MainActivity : Activity() {
 
         home = TvHomeView(
             this,
-            { openTelevision() },
-            { showAppSettings() },
-            { showApps() },
-            { showApps(true) }
+            onLive = { openTelevision() },
+            onMovie = { ExternalAppRoutes.launchMovieApp(this) },
+            onSettings = { showAppSettings() },
+            onAllApps = { showApps(false) }
         ).apply { drawsBackdrop = false }
 
         root.addView(home, FrameLayout.LayoutParams(-1, -1))
@@ -274,6 +274,9 @@ class MainActivity : Activity() {
         }
 
         val desktop = action(body, "默认桌面应用", desktopLabel()) { chooseDefaultHome() }
+        action(body, "电影应用关联", ExternalAppRoutes.getMovieLabel(this)) {
+            ExternalAppRoutes.showSelectMovieAppDialog(this) { if (screen == "settings") showAppSettings() }
+        }
         action(body, "桌面背景", HomeAppearance.label(this)) { appearanceUi.wallpaper() }
         action(body, "直播管理") { liveSettings.show() }
         toggle(body, "打开时进入直播", startupPrefs.getBoolean("live", false)) { startupPrefs.edit().putBoolean("live", it).apply() }
