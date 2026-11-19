@@ -40,7 +40,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
-        window.setBackgroundDrawable(ColorDrawable(if (HomeAppearance.dark(this)) 0xff162233.toInt() else 0xffe9eff4.toInt()))
+        window.setBackgroundDrawable(ColorDrawable(if (HomeAppearance.dark(this)) 0xff090c12.toInt() else 0xffe9eff4.toInt()))
         if (intent.getBooleanExtra("from_boot", false)) BootReceiver.markArrived(this)
         apkInstaller = ApkInstaller(this)
         apkInstaller.restore(state)
@@ -300,6 +300,8 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(56), dp(24), dp(56), dp(24))
             background = GlassUi.backdrop(this)
+            clipChildren = false
+            clipToPadding = false
         }
         appsPanel = page
         root.addView(page, FrameLayout.LayoutParams(-1, -1))
@@ -315,9 +317,15 @@ class MainActivity : Activity() {
         val scroll = ScrollView(this).apply {
             isFillViewport = true
             isVerticalScrollBarEnabled = false
+            clipChildren = false
+            clipToPadding = false
         }
         page.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(14) })
-        val grid = GridLayout(this).apply { columnCount = 5 }
+        val grid = GridLayout(this).apply {
+            columnCount = 5
+            clipChildren = false
+            clipToPadding = false
+        }
         scroll.addView(grid, FrameLayout.LayoutParams(-1, -2))
 
         fun render() {
@@ -350,9 +358,18 @@ class MainActivity : Activity() {
                     if (Build.VERSION.SDK_INT >= 26) defaultFocusHighlightEnabled = false
                     minWidth = 0; minimumWidth = 0; minHeight = 0; minimumHeight = 0
                     setTextColor(GlassUi.colors(this@MainActivity))
-                    background = GlassUi.surface(this, faint = true)
+                    background = GlassUi.surface(this, radius = GlassUi.TILE_RADIUS, faint = true)
                     isSelected = editing && selected
                     isFocusableInTouchMode = true
+                    setOnFocusChangeListener { v, focus ->
+                        if (focus) v.bringToFront()
+                        v.animate()
+                            .scaleX(if (focus) 1.06f else 1f)
+                            .scaleY(if (focus) 1.06f else 1f)
+                            .translationZ(if (focus) 12f * NativeUi.scale(this@MainActivity) else 0f)
+                            .setDuration(150)
+                            .start()
+                    }
                 }
                 try {
                     val icon = repository.icon(entry)

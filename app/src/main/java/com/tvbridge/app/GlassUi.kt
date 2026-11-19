@@ -13,32 +13,36 @@ import java.lang.ref.WeakReference
 
 object GlassUi {
     const val PANEL_RADIUS = 28f
-    const val BUTTON_RADIUS = 24f
-    const val TILE_RADIUS = 20f
+    const val BUTTON_RADIUS = 22f
+    const val TILE_RADIUS = 22f
+    const val TAB_RADIUS = 24f
     const val CHIP_RADIUS = 18f
     const val CIRCLE_RADIUS = 100f
 
     data class Frost(val bitmap: Bitmap, val width: Int, val height: Int, val left: Int = 0, val top: Int = 0)
 
-    private var frostKey = ""
-    private var wallpaperFrost: Frost? = null
-    private fun tint(gain: Float, lift: Float) = ColorMatrixColorFilter(floatArrayOf(
-        gain, 0f, 0f, 0f, lift, 0f, gain, 0f, 0f, lift,
-        0f, 0f, gain, 0f, lift, 0f, 0f, 0f, 1f, 0f
-    ))
-    private val plateTintDark = tint(0.80f, 30f)
-    private val plateTintLight = tint(0.85f, 40f)
-
     fun ink(context: Context, dark: Boolean = HomeAppearance.dark(context)) =
-        if (dark) 0xffedf4fc.toInt() else 0xff263c50.toInt()
+        if (dark) 0xfff6f7fb.toInt() else 0xff1c222b.toInt()
 
     fun muted(context: Context, dark: Boolean = HomeAppearance.dark(context)) =
-        if (dark) 0xffbac8d8.toInt() else 0xff5e6c76.toInt()
+        if (dark) 0xff949ba8.toInt() else 0xff6b7280.toInt()
 
     fun colors(context: Context, dark: Boolean = HomeAppearance.dark(context)) =
         ColorStateList(
-            arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf()),
-            intArrayOf(if (dark) 0xff9aa9b9.toInt() else 0xff83909d.toInt(), ink(context, dark))
+            arrayOf(
+                intArrayOf(-android.R.attr.state_enabled),
+                intArrayOf(android.R.attr.state_focused),
+                intArrayOf(android.R.attr.state_pressed),
+                intArrayOf(android.R.attr.state_selected),
+                intArrayOf()
+            ),
+            intArrayOf(
+                if (dark) 0x66949ba8.toInt() else 0x666b7280.toInt(),
+                0xffffffff.toInt(),
+                0xffffffff.toInt(),
+                0xffffffff.toInt(),
+                if (dark) 0xffd1d5e2.toInt() else 0xff323a48.toInt()
+            )
         )
 
     fun activity(context: Context): Activity? {
@@ -50,72 +54,12 @@ object GlassUi {
         return c as? Activity
     }
 
-    fun frost(b: Bitmap): Bitmap {
-        val w = 320
-        val h = (b.height * 320f / b.width).toInt().coerceIn(1, 320)
-        val small = Bitmap.createScaledBitmap(b, w, h, true)
-        val px = IntArray(w * h)
-        small.getPixels(px, 0, w, 0, 0, w, h)
-        if (small !== b) small.recycle()
-        val tmp = IntArray(px.size)
-        repeat(3) {
-            pass(px, tmp, w, h, 7, horizontal = true)
-            pass(tmp, px, w, h, 7, horizontal = false)
-        }
-        val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        out.setPixels(px, 0, w, 0, 0, w, h)
-        return out
-    }
-
-    private fun pass(src: IntArray, dst: IntArray, w: Int, h: Int, r: Int, horizontal: Boolean) {
-        val lines = if (horizontal) h else w
-        val len = if (horizontal) w else h
-        val stride = if (horizontal) 1 else w
-        val n = r * 2 + 1
-        for (l in 0 until lines) {
-            val base = if (horizontal) l * w else l
-            var a = 0; var rr = 0; var g = 0; var b = 0
-            for (k in -r..r) {
-                val c = src[base + k.coerceIn(0, len - 1) * stride]
-                a += c ushr 24; rr += (c shr 16) and 0xFF; g += (c shr 8) and 0xFF; b += c and 0xFF
-            }
-            for (i in 0 until len) {
-                val idx = base + i * stride
-                dst[idx] = ((a / n) shl 24) or ((rr / n) shl 16) or ((g / n) shl 8) or (b / n)
-                val old = src[base + (i - r).coerceIn(0, len - 1) * stride]
-                val next = src[base + (i + r + 1).coerceIn(0, len - 1) * stride]
-                a += (next ushr 24) - (old ushr 24)
-                rr += ((next shr 16) and 0xFF) - ((old shr 16) and 0xFF)
-                g += ((next shr 8) and 0xFF) - ((old shr 8) and 0xFF)
-                b += (next and 0xFF) - (old and 0xFF)
-            }
-        }
-    }
-
-    @Synchronized
-    private fun wallpaper(context: Context): Frost {
-        val size = context.resources.displayMetrics
-        val root = activity(context)?.window?.decorView
-        val w = root?.width?.takeIf { it > 0 } ?: size.widthPixels
-        val h = root?.height?.takeIf { it > 0 } ?: size.heightPixels
-        val point = IntArray(2)
-        root?.getLocationOnScreen(point)
-        val key = "${HomeAppearance.key(context)}:$w:$h:${point[0]}:${point[1]}"
-        if (key != frostKey || wallpaperFrost == null) {
-            val targetH = (h * 320f / w).toInt().coerceAtLeast(1)
-            val image = HomeAppearance.backdrop(context, 320, targetH, HomeAppearance.dark(context))
-            wallpaperFrost = Frost(frost(image), w, h, point[0], point[1])
-            frostKey = key
-        }
-        return wallpaperFrost!!
-    }
-
     private var staticFrostBitmap: Bitmap? = null
 
     @Synchronized
     fun staticFrost(context: Context): Frost {
         if (staticFrostBitmap == null) {
-            staticFrostBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).apply { eraseColor(0xff2d4257.toInt()) }
+            staticFrostBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).apply { eraseColor(0xff121722.toInt()) }
         }
         val size = context.resources.displayMetrics
         val root = activity(context)?.window?.decorView
@@ -124,13 +68,7 @@ object GlassUi {
         return Frost(staticFrostBitmap!!, w, h, 0, 0)
     }
 
-    fun snapshot(context: Context): Frost? {
-        return try {
-            wallpaper(context)
-        } catch (_: Exception) {
-            staticFrost(context)
-        }
-    }
+    fun snapshot(context: Context): Frost? = staticFrost(context)
 
     fun video(context: Context): Boolean {
         if (context.packageName == "com.tvbridge.engine") return true
@@ -162,7 +100,7 @@ object GlassUi {
 
     fun surface(
         view: View,
-        radius: Float = 24f,
+        radius: Float = 22f,
         frost: Frost? = null,
         video: Boolean = video(view.context),
         dark: Boolean? = null,
@@ -171,7 +109,7 @@ object GlassUi {
         faint: Boolean = false,
         alphaBoost: Int = 0,
         bottomCorners: Boolean = true
-    ): Drawable = Material(view, radius, frost, video, dark, dense, border, faint, alphaBoost, bottomCorners)
+    ): Drawable = Material(view, radius, dark, dense, border, faint, alphaBoost, bottomCorners)
 
     fun selectedBorder(view: View, radius: Float = 18f): Drawable {
         val scale = NativeUi.scale(view.context)
@@ -181,9 +119,9 @@ object GlassUi {
             if (stroke > 0f) setStroke(stroke.toInt(), strokeColor)
         }
         return StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_pressed), borderDrawable(2.0f * scale, 0xf0ffffff.toInt(), 0x33ffffff))
-            addState(intArrayOf(android.R.attr.state_focused), borderDrawable(2.0f * scale, 0xf0ffffff.toInt(), 0x33ffffff))
-            addState(intArrayOf(android.R.attr.state_selected), borderDrawable(2.0f * scale, 0xf0ffffff.toInt(), 0x33ffffff))
+            addState(intArrayOf(android.R.attr.state_pressed), borderDrawable(1.8f * scale, 0xf0ffffff.toInt(), 0x33ffffff))
+            addState(intArrayOf(android.R.attr.state_focused), borderDrawable(1.8f * scale, 0xf0ffffff.toInt(), 0x33ffffff))
+            addState(intArrayOf(android.R.attr.state_selected), borderDrawable(1.8f * scale, 0xf0ffffff.toInt(), 0x33ffffff))
             addState(intArrayOf(), borderDrawable(0f, 0x00000000, 0x00000000))
         }
     }
@@ -260,8 +198,6 @@ object GlassUi {
     private class Material(
         view: View,
         private val radius: Float,
-        private val captured: Frost?,
-        private val video: Boolean,
         private val forceDark: Boolean?,
         private val dense: Boolean,
         private val border: Boolean = true,
@@ -269,13 +205,9 @@ object GlassUi {
         private val alphaBoost: Int = 0,
         private val bottomCorners: Boolean = true
     ) : Drawable() {
-        private var sampled: Bitmap? = null
-        private var sampledShader: BitmapShader? = null
-        private val placement = Matrix()
         private val target = WeakReference(view)
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         private val rect = RectF()
-        private val point = IntArray(2)
         private var isSelected = false
         private val path = Path()
         private val edgePath = Path()
@@ -288,14 +220,15 @@ object GlassUi {
 
         private fun geometry(scale: Float) {
             if (!geometryDirty && geometryScale == scale) return
-            geometryDirty = false; geometryScale = scale
+            geometryDirty = false
+            geometryScale = scale
             rect.set(bounds)
             val corner = radius * scale
             path.set(SmoothCorners.smoothRect(rect, corner, if (bottomCorners) corner else 0f))
-            val rimWidth = (if (isSelected) 1.8f else 1.2f) * scale
+            val rimWidth = (if (isSelected) 1.8f else 1.0f) * scale
             rimPaint.strokeWidth = rimWidth
-            rimPaint.color = Color.argb(if (isSelected) 178 else 56, 255, 255, 255)
-            edgeRect.set(rect); edgeRect.inset(rimWidth / 2f, rimWidth / 2f)
+            edgeRect.set(rect)
+            edgeRect.inset(rimWidth / 2f, rimWidth / 2f)
             val edgeCorner = (corner - rimWidth / 2f).coerceAtLeast(0f)
             edgePath.set(SmoothCorners.smoothRect(edgeRect, edgeCorner, if (bottomCorners) edgeCorner else 0f))
         }
@@ -303,7 +236,11 @@ object GlassUi {
         override fun isStateful() = true
 
         override fun onStateChange(state: IntArray): Boolean {
-            val sel = state.any { it == android.R.attr.state_focused || it == android.R.attr.state_pressed || it == android.R.attr.state_selected }
+            val sel = state.any {
+                it == android.R.attr.state_focused ||
+                it == android.R.attr.state_pressed ||
+                it == android.R.attr.state_selected
+            }
             if (sel != isSelected) {
                 isSelected = sel
                 geometryDirty = true
@@ -323,57 +260,77 @@ object GlassUi {
             val saved = canvas.save()
             canvas.clipPath(path)
 
-            if (video) {
-                paint.shader = null
-                paint.colorFilter = null
-                paint.style = Paint.Style.FILL
-                val smokeAlpha = if (dense) 0xd4 else if (faint) 0x90 else 0xc8
-                paint.color = if (dark) {
-                    Color.argb(
-                        (smokeAlpha + alphaBoost).coerceIn(0, 255),
-                        if (dense) 32 else 20,
-                        if (dense) 36 else 24,
-                        if (dense) 40 else 28
+            if (dark) {
+                // Apple-inspired Deep Charcoal Layered Glass Fill
+                if (isSelected) {
+                    // Radiant focused card state
+                    paint.shader = LinearGradient(
+                        rect.left, rect.top, rect.left, rect.bottom,
+                        intArrayOf(0xee2c384d.toInt(), 0xf01a2332.toInt()),
+                        floatArrayOf(0f, 1f),
+                        Shader.TileMode.CLAMP
                     )
-                } else {
-                    Color.argb((smokeAlpha + alphaBoost).coerceIn(0, 255), 235, 240, 245)
-                }
-                canvas.drawRect(rect, paint)
-
-            } else {
-                val source = captured ?: try { wallpaper(view.context) } catch (_: Exception) { staticFrost(view.context) }
-                view.getLocationOnScreen(point)
-                if (sampled !== source.bitmap) {
-                    sampled = source.bitmap
-                    sampledShader = BitmapShader(source.bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
-                }
-                placement.setScale(source.width.toFloat() / source.bitmap.width, source.height.toFloat() / source.bitmap.height)
-                placement.postTranslate((source.left - point[0]).toFloat(), (source.top - point[1]).toFloat())
-                sampledShader!!.setLocalMatrix(placement)
-                paint.shader = sampledShader
-                paint.colorFilter = if (dark) plateTintDark else plateTintLight
-                paint.alpha = 255
-                canvas.drawRect(rect, paint)
-                paint.shader = null
-                paint.colorFilter = null
-
-                if (dense || alphaBoost != 0) {
                     paint.style = Paint.Style.FILL
-                    paint.color = Color.argb(((if (dense) 18 else 0) + alphaBoost).coerceIn(0, 100), if (dark) 0 else 255, if (dark) 0 else 255, if (dark) 0 else 255)
+                    canvas.drawRect(rect, paint)
+
+                    // Subtle specular illumination wash
+                    paint.shader = null
+                    paint.color = 0x22ffffff
+                    canvas.drawRect(rect, paint)
+                } else {
+                    // Elegant resting glass surface
+                    val topAlpha = (if (dense) 0xee else if (faint) 0xa8 else 0xc8) + alphaBoost
+                    val botAlpha = (if (dense) 0xf4 else if (faint) 0xb8 else 0xd8) + alphaBoost
+                    val clampedTop = topAlpha.coerceIn(0, 255)
+                    val clampedBot = botAlpha.coerceIn(0, 255)
+
+                    paint.shader = LinearGradient(
+                        rect.left, rect.top, rect.left, rect.bottom,
+                        intArrayOf(
+                            Color.argb(clampedTop, 22, 29, 41),
+                            Color.argb(clampedBot, 13, 17, 25)
+                        ),
+                        floatArrayOf(0f, 1f),
+                        Shader.TileMode.CLAMP
+                    )
+                    paint.style = Paint.Style.FILL
+                    canvas.drawRect(rect, paint)
+
+                    // Top 1px Specular Edge Reflection (acrylic glass sheen)
+                    paint.shader = LinearGradient(
+                        rect.left, rect.top, rect.left, rect.top + 28f * scale,
+                        intArrayOf(0x24ffffff, 0x00000000),
+                        floatArrayOf(0f, 1f),
+                        Shader.TileMode.CLAMP
+                    )
+                    canvas.drawRect(rect.left, rect.top, rect.right, rect.top + 28f * scale, paint)
+                }
+            } else {
+                // Ceramic Light Theme Material
+                val alpha = (if (isSelected) 245 else if (dense) 230 else if (faint) 180 else 200) + alphaBoost
+                paint.shader = null
+                paint.style = Paint.Style.FILL
+                paint.color = Color.argb(alpha.coerceIn(0, 255), 242, 246, 250)
+                canvas.drawRect(rect, paint)
+
+                if (isSelected) {
+                    paint.color = 0x30ffffff
                     canvas.drawRect(rect, paint)
                 }
-            }
-
-            if (isSelected) {
-                paint.style = Paint.Style.FILL
-                paint.color = if (dark) 0x36ffffff else 0x42ffffff
-                canvas.drawRect(rect, paint)
             }
 
             canvas.restoreToCount(saved)
 
             if (radius <= 0 || !border) return
 
+            // High-precision 1px highlight border / rim
+            if (isSelected) {
+                // High-contrast luminous border on focus
+                rimPaint.color = Color.argb(235, 255, 255, 255)
+            } else {
+                // Subtle 1px translucent glass border
+                rimPaint.color = if (dark) Color.argb(32, 255, 255, 255) else Color.argb(45, 0, 0, 0)
+            }
             canvas.drawPath(edgePath, rimPaint)
         }
 

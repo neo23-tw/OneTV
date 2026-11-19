@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.*
 import android.graphics.drawable.*
 import android.view.*
+import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 
 class TvHomeView(
@@ -20,6 +21,7 @@ class TvHomeView(
     private val clockFont = Typeface.create("sans-serif", Typeface.BOLD)
     private val timeFormat = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
     private val dateFormat = java.text.SimpleDateFormat("yyyy年M月d日  EEEE", java.util.Locale.SIMPLIFIED_CHINESE)
+    private val decelerator = DecelerateInterpolator(1.5f)
 
     // 4 Main Tabs
     val homeTab = Button(context)
@@ -49,21 +51,6 @@ class TvHomeView(
     private var appSignature: String? = null
     private var rememberedFocus = "首頁"
     private var activatedFocus = ""
-    private var labelInk: Rect? = null
-
-    private fun labelInkBounds(): Rect {
-        labelInk?.let { return it }
-        val previousSize = paint.textSize
-        val previousTypeface = paint.typeface
-        paint.textSize = 32f
-        paint.typeface = bold
-        val bounds = Rect()
-        paint.getTextBounds("常用應用", 0, 4, bounds)
-        paint.textSize = previousSize
-        paint.typeface = previousTypeface
-        labelInk = bounds
-        return bounds
-    }
 
     private fun homeTextColors() = GlassUi.colors(context)
 
@@ -84,6 +71,14 @@ class TvHomeView(
         setWillNotDraw(false)
         isFocusable = false
 
+        // Disable clipping so scaled/elevated focus cards can expand cleanly beyond cell bounds
+        clipChildren = false
+        clipToPadding = false
+        appRail.clipChildren = false
+        appRail.clipToPadding = false
+        appRow.clipChildren = false
+        appRow.clipToPadding = false
+
         val tabConfigs = listOf(
             Triple(homeTab, "首頁", Runnable { focusFirstApp() }),
             Triple(liveTab, "直播", onLive),
@@ -93,8 +88,10 @@ class TvHomeView(
 
         tabConfigs.forEach { (btn, label, action) ->
             btn.apply {
-                if (android.os.Build.VERSION.SDK_INT >= 21) backgroundTintList = null
-                if (android.os.Build.VERSION.SDK_INT >= 21) stateListAnimator = null
+                if (android.os.Build.VERSION.SDK_INT >= 21) {
+                    backgroundTintList = null
+                    stateListAnimator = null
+                }
                 if (android.os.Build.VERSION.SDK_INT >= 26) defaultFocusHighlightEnabled = false
                 text = label
                 contentDescription = label
@@ -113,9 +110,16 @@ class TvHomeView(
                 setOnFocusChangeListener { v, focus ->
                     if (focus) {
                         rememberedFocus = label
+                        v.bringToFront()
                     }
                     (v as Button).setTextColor(homeTextColors())
-                    v.animate().scaleX(if (focus) 1.06f else 1f).scaleY(if (focus) 1.06f else 1f).setDuration(120).start()
+                    v.animate()
+                        .scaleX(if (focus) 1.06f else 1f)
+                        .scaleY(if (focus) 1.06f else 1f)
+                        .translationZ(if (focus) 10f * scale else 0f)
+                        .setDuration(150)
+                        .setInterpolator(decelerator)
+                        .start()
                 }
             }
             NativeUi.touchClicks(btn)
@@ -170,8 +174,10 @@ class TvHomeView(
                 isAllCaps = false
                 minWidth = 0; minimumWidth = 0; minHeight = 0; minimumHeight = 0
                 isFocusableInTouchMode = true
-                if (android.os.Build.VERSION.SDK_INT >= 21) backgroundTintList = null
-                if (android.os.Build.VERSION.SDK_INT >= 21) stateListAnimator = null
+                if (android.os.Build.VERSION.SDK_INT >= 21) {
+                    backgroundTintList = null
+                    stateListAnimator = null
+                }
                 if (android.os.Build.VERSION.SDK_INT >= 26) defaultFocusHighlightEnabled = false
                 gravity = Gravity.CENTER
                 maxLines = 1
@@ -185,12 +191,23 @@ class TvHomeView(
                     else if (entry == null) onAllApps.run()
                     else if (!launcherApps.launch(entry)) NativeUi.notice(context, "應用已移除或無法打開")
                 }
-                setOnFocusChangeListener { _, focus ->
-                    if (focus) rememberedFocus = label
+                setOnFocusChangeListener { v, focus ->
+                    if (focus) {
+                        rememberedFocus = label
+                        v.bringToFront()
+                    }
+                    // Tactile Apple TV remote focus zoom animation
+                    v.animate()
+                        .scaleX(if (focus) 1.08f else 1f)
+                        .scaleY(if (focus) 1.08f else 1f)
+                        .translationZ(if (focus) 16f * scale else 0f)
+                        .setDuration(160)
+                        .setInterpolator(decelerator)
+                        .start()
                 }
             }
             val icon = if (entry != null) try { launcherApps.icon(entry) } catch (_: Exception) { AppIcons.Vector("grid") { b.currentTextColor } } else AppIcons.Vector("plus") { b.currentTextColor }
-            val n = (46 * scale).toInt()
+            val n = (48 * scale).toInt()
             icon.setBounds(0, 0, n, n)
             b.icon = icon
             if (entry != null) b.setOnLongClickListener { showAppMenu(b, entry); true }
@@ -307,7 +324,7 @@ class TvHomeView(
         }
         popup.show()
         popup.listView?.let {
-            it.background = GlassUi.surface(it, 20f)
+            it.background = GlassUi.surface(it, 20f, dense = true)
             it.setPadding(0, 0, 0, 0)
             it.divider = null
             it.dividerHeight = 0
@@ -398,8 +415,8 @@ class TvHomeView(
     }
 
     private val twoRows get() = appButtons.size > 5
-    private fun tabBackground(view: View) = GlassUi.surface(view, 24f, faint = true)
-    private fun appTileBackground(view: View) = GlassUi.surface(view, faint = true)
+    private fun tabBackground(view: View) = GlassUi.surface(view, radius = 24f, faint = true)
+    private fun appTileBackground(view: View) = GlassUi.surface(view, radius = GlassUi.TILE_RADIUS, faint = true)
 
     override fun onMeasure(width: Int, height: Int) {
         val w = MeasureSpec.getSize(width)
@@ -421,7 +438,7 @@ class TvHomeView(
                     marginEnd = if (i % 5 == 4) 0 else (32 * scale).toInt()
                     bottomMargin = if (i < 5) (24 * scale).toInt() else 0
                 }
-                button.iconPixels = if (button.tag == null) 56f else if (twoRows) 76f else 100f
+                button.iconPixels = if (button.tag == null) 56f else if (twoRows) 76f else 96f
             }
         }
 
@@ -430,8 +447,8 @@ class TvHomeView(
             MeasureSpec.makeMeasureSpec(((if (twoRows) 360 else 200) * scale).toInt(), MeasureSpec.EXACTLY)
         )
 
-        val tabWidth = (240 * scale).toInt()
-        val tabHeight = (72 * scale).toInt()
+        val tabWidth = (220 * scale).toInt()
+        val tabHeight = (64 * scale).toInt()
         tabs.forEach { b ->
             b.measure(
                 MeasureSpec.makeMeasureSpec(tabWidth, MeasureSpec.EXACTLY),
@@ -444,7 +461,7 @@ class TvHomeView(
         tabs.forEach { b ->
             b.setTextColor(homeTextColors())
             b.background = tabBackground(b)
-            NativeUi.textSize(b, 30f)
+            NativeUi.textSize(b, 28f)
             b.gravity = Gravity.CENTER
             val iconKey = when (b) {
                 homeTab -> "home"
@@ -452,8 +469,8 @@ class TvHomeView(
                 movieTab -> "play"
                 else -> "settings"
             }
-            AppIcons.bind(b, iconKey, 32f)
-            val inset = ((b.measuredWidth - 32 * scale - 12 * scale - b.paint.measureText(b.text.toString())) / 2).toInt().coerceAtLeast((16 * scale).toInt())
+            AppIcons.bind(b, iconKey, 28f)
+            val inset = ((b.measuredWidth - 28 * scale - 10 * scale - b.paint.measureText(b.text.toString())) / 2).toInt().coerceAtLeast((16 * scale).toInt())
             b.setPadding(inset, 0, inset, 0)
         }
         appButtons.forEach { button ->
@@ -465,7 +482,7 @@ class TvHomeView(
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         val y = (oy + 64 * scale).toInt()
-        val tabSpacing = (24 * scale).toInt()
+        val tabSpacing = (20 * scale).toInt()
         tabs.forEachIndexed { i, button ->
             val x = (ox + (96 * scale) + i * (button.measuredWidth + tabSpacing)).toInt()
             button.layout(x, y, x + button.measuredWidth, y + button.measuredHeight)
@@ -491,23 +508,23 @@ class TvHomeView(
         val order = launcherApps.saved()
         val index = order.indexOf(entry.component.flattenToString())
         val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = ink
+            color = 0xff60a5fa.toInt()
             style = Paint.Style.STROKE
-            strokeWidth = 2.5f * scale
+            strokeWidth = 2.8f * scale
             strokeCap = Paint.Cap.ROUND
             strokeJoin = Paint.Join.ROUND
         }
         fun arrow(center: Float, left: Boolean, enabled: Boolean) {
-            arrowPaint.alpha = if (enabled) 255 else 65
+            arrowPaint.alpha = if (enabled) 255 else 70
             val sign = if (left) -1 else 1
             val p = Path()
-            p.moveTo(center - sign * 3 * scale, y - 6 * scale)
-            p.lineTo(center + sign * 3 * scale, y)
-            p.lineTo(center - sign * 3 * scale, y + 6 * scale)
+            p.moveTo(center - sign * 4 * scale, y - 7 * scale)
+            p.lineTo(center + sign * 4 * scale, y)
+            p.lineTo(center - sign * 4 * scale, y + 7 * scale)
             canvas.drawPath(p, arrowPaint)
         }
-        arrow(x + 13 * scale, true, index > 0)
-        arrow(x + tile.width - 13 * scale, false, index < order.lastIndex)
+        arrow(x + 14 * scale, true, index > 0)
+        arrow(x + tile.width - 14 * scale, false, index < order.lastIndex)
     }
 
     fun focusFirst() {
@@ -516,14 +533,6 @@ class TvHomeView(
             it.visibility == View.VISIBLE && it.isFocusable && (it.text?.toString() == entry || it.contentDescription?.toString() == entry)
         }
         (target ?: homeTab).requestFocus()
-    }
-
-    private fun text(c: Canvas, value: String, x: Float, y: Float, size: Float, color: Int = ink, strong: Boolean = false) {
-        paint.shader = null
-        paint.color = color
-        paint.textSize = size
-        paint.typeface = if (strong) bold else regular
-        c.drawText(value, x, y, paint)
     }
 
     override fun onDraw(c: Canvas) {
@@ -540,28 +549,35 @@ class TvHomeView(
         timeFormat.timeZone = zone
         dateFormat.timeZone = zone
         val time = timeFormat.format(now)
-        paint.textSize = if (twoRows) 130f else 150f
-        paint.typeface = clockFont
+
         val timeY = if (twoRows) 290f else 350f
-
-        paint.shader = null
+        paint.textSize = if (twoRows) 124f else 142f
+        paint.typeface = clockFont
         paint.style = Paint.Style.FILL
-        paint.color = if (darkHome) 0x55000000 else 0x55ffffff
-        c.drawText(time, 96f + 3f, timeY + 4f, paint)
 
-        paint.color = if (darkHome) 0xd0f0ede0.toInt() else 0xd02a3a4a.toInt()
+        // Apple TV Clean Time Display with ambient soft shadow
+        paint.color = if (darkHome) 0xf5f8fcff.toInt() else 0xf01e2530.toInt()
+        paint.setShadowLayer(14f * scale, 0f, 4f * scale, 0x66000000)
         c.drawText(time, 96f, timeY, paint)
+        paint.clearShadowLayer()
 
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 2f
-        paint.color = if (darkHome) 0x66ffffff else 0x66404040.toInt()
-        c.drawText(time, 96f, timeY, paint)
+        // Apple Silver Date Display
+        paint.textSize = 32f
+        paint.typeface = regular
+        paint.color = if (darkHome) 0xbfa8b4c6.toInt() else 0xbf5a6678.toInt()
+        c.drawText(dateFormat.format(now), 100f, if (twoRows) 345f else 405f, paint)
 
+        // Section Title: "常用應用" with Apple-style Electric Accent
+        val sectionY = if (twoRows) 530f else 610f
         paint.style = Paint.Style.FILL
-        paint.strokeWidth = 0f
-        text(c, dateFormat.format(now), 100f, if (twoRows) 345f else 405f, 34f)
-        val ink = labelInkBounds()
-        text(c, "常用應用", 96f, (if (twoRows) 530f else 610f) - 24f, 32f, strong = true)
+        paint.color = if (darkHome) 0xff3b82f6.toInt() else 0xff2563eb.toInt()
+        c.drawRoundRect(RectF(96f, sectionY - 26f, 100f, sectionY - 4f), 2f, 2f, paint)
+
+        paint.color = if (darkHome) 0xeef1f5f9.toInt() else 0xee1e293b.toInt()
+        paint.textSize = 30f
+        paint.typeface = bold
+        c.drawText("常用應用", 112f, sectionY - 6f, paint)
+
         c.restore()
     }
 }
